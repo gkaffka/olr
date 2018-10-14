@@ -6,11 +6,13 @@
 # between Leap Motion and you, your company or other organization.             #
 ################################################################################
 
-import Leap, sys, thread, time, serial, os
-from Leap import CircleGesture, KeyTapGesture, ScreenTapGesture, SwipeGesture
+import Leap, sys, thread, time, serial, os, random
+from time import sleep
+from Leap import CircleGesture, KeyTapGesture, ScreenTapGesture, SwipeGesture, Finger
 
-def play_sound(name):
-    os.system("mpg123 /home/kaffka/LeapDeveloperKit_2.3.1+31549_linux/LeapSDK/samples/{}.mp3".format(name))
+def play_sound():
+    sound="sound{}".format(random.randint(1,7))
+    os.system("mpg123 /home/kaffka/olr/LeapController/{}.mp3".format(sound))
 
 class SampleListener(Leap.Listener):
     finger_names = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky']
@@ -39,12 +41,12 @@ class SampleListener(Leap.Listener):
 
     def on_frame(self, controller):
         # Defines the conection with the arduino 
-        # ser = serial.Serial('/dev/tty.usbserial', 9600) 
+        ser = serial.Serial('/dev/ttyACM0', 9600) 
         # Get the most recent frame and report some basic information  
         frame = controller.frame()
 
-        # print "Frame id: %d, timestamp: %d, hands: %d, fingers: %d, tools: %d, gestures: %d" % (
-        #       frame.id, frame.timestamp, len(frame.hands), len(frame.fingers), len(frame.tools), len(frame.gestures()))
+        #print "Frame id: %d, timestamp: %d, hands: %d, fingers: %d, tools: %d, gestures: %d" % (
+               #frame.id, frame.timestamp, len(frame.hands), len(frame.fingers), len(frame.tools), len(frame.gestures()))
 
         # Get hands
         for hand in frame.hands:
@@ -72,22 +74,40 @@ class SampleListener(Leap.Listener):
             #     arm.elbow_position)
 
             # Get fingers
-            for finger in hand.fingers:
+            indicador  = hand.fingers.finger_type(Finger.TYPE_INDEX)[0]
+            mindinho  = hand.fingers.finger_type(Finger.TYPE_PINKY)[0]
+            dedao  = hand.fingers.finger_type(Finger.TYPE_THUMB)[0]
+            anelar  = hand.fingers.finger_type(Finger.TYPE_RING)[0]
+            medio  = hand.fingers.finger_type(Finger.TYPE_MIDDLE)[0]
 
-                # print "    %s finger, id: %d, length: %fmm, width: %fmm" % (
-                #     self.finger_names[finger.type],
-                #     finger.id,
-                #     finger.length,
-                #     finger.width)
+            ind_apontado = indicador.bone(3).direction.z > 0
+            med_apontado = medio.bone(3).direction.z > 0
+            ane_apontado = anelar.bone(3).direction.z > 0
+            mind_apontado = mindinho.bone(3).direction.z > 0
+            ded_apontado = dedao.bone(3).direction.y < 0
 
-                # Get bones
-                for b in range(0, 4):
-                    bone = finger.bone(b)
-                    # print "      Bone: %s, start: %s, end: %s, direction: %s" % (
-                    #     self.bone_names[bone.type],
-                    #     bone.prev_joint,
-                    #     bone.next_joint,
-                    #     bone.direction)
+            if ind_apontado and not(med_apontado) and not(ane_apontado) and not(mind_apontado):
+                print "Indicador"
+                ser.write('I') 
+                play_sound()
+                sleep(2)
+            elif med_apontado and ind_apontado and not(ane_apontado) and not(mind_apontado):
+                print "Medio e Indicador"
+                ser.write('M')
+                play_sound() 
+                sleep(2)
+            elif ane_apontado and ind_apontado and med_apontado and not(mind_apontado):
+                print "Medio, Indicador e Anelar"
+                ser.write('A')
+                play_sound() 
+                sleep(2)
+            elif ded_apontado and not(ind_apontado) and not(med_apontado) and not(ane_apontado) and not(mind_apontado):
+                print "Dedao Ok"
+                ser.write('D') 
+                play_sound()
+                sleep(2)
+                
+                         
 
         # Get tools
         for tool in frame.tools:
@@ -122,12 +142,14 @@ class SampleListener(Leap.Listener):
                 #         gesture.id, self.state_names[gesture.state],
                 #         swipe.position, swipe.direction, swipe.speed)    
                 if hand.is_left:
+                    ser.write('F') 
                     print "Swipe mao esquerda"
-                    play_sound("sound1")
-                    # ser.write('F')            
+                    play_sound()           
                 else:
+                    ser.write('E') 
+                    play_sound()   
                     print "Swipe mao direita"
-                    # ser.write('E')           
+                          
 
             if gesture.type == Leap.Gesture.TYPE_KEY_TAP:
                 keytap = KeyTapGesture(gesture)
